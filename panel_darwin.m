@@ -37,7 +37,7 @@ static NSRect panelFrame(NSWindow *window) {
     }
     NSRect available = screen.visibleFrame;
     CGFloat width = MIN(420.0, available.size.width - 32.0);
-    CGFloat height = MIN(700.0, available.size.height - 32.0);
+    CGFloat height = MIN(740.0, available.size.height - 32.0);
     // Keep all controls below the notch and menu bar, including external displays.
     CGFloat safeTop = MIN(NSMaxY(available), NSMaxY(screen.frame) - screen.safeAreaInsets.top);
     return NSMakeRect(NSMidX(available) - width / 2.0, safeTop - height - 8.0, width, height);

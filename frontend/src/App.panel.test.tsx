@@ -44,9 +44,27 @@ describe('Desktop summary', () => {
   it('passes selected period and scenario into the native detail window', async () => {
     const user = setup();
     await screen.findByRole('heading', { name: 'Пульс магазина' });
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Период' }), 'week');
+    await user.click(screen.getByRole('combobox', { name: 'Период' }));
+    await user.click(screen.getByRole('option', { name: '7 дней' }));
     await screen.findByRole('button', { name: /Выкупы.*756/ });
     await user.click(screen.getByRole('button', { name: 'Открыть подробности' }));
     expect(openDetails).toHaveBeenCalledWith('overview', 'week', 'normal');
+  });
+  it('leaves the summary open when Escape cancels the period list', async () => {
+    const user = setup();
+    await screen.findByRole('heading', { name: 'Пульс магазина' });
+    await user.click(screen.getByRole('combobox', { name: 'Период' }));
+    await user.keyboard('{End}{Escape}');
+    expect(screen.getByRole('combobox', { name: 'Период' })).toHaveTextContent('Сегодня');
+    expect(closePanel).not.toHaveBeenCalled();
+  });
+  it('blocks repeated refreshes while retaining the current snapshot', async () => {
+    const user = setup();
+    await screen.findByRole('heading', { name: 'Пульс магазина' });
+    await user.click(screen.getByRole('button', { name: 'Перезагрузить демоснимок' }));
+    expect(await screen.findByRole('button', { name: 'Обновление…' })).toBeDisabled();
+    expect(screen.getByRole('heading', { name: 'Пульс магазина' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Выкупы.*126/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Перезагрузить демоснимок' })).toBeEnabled();
   });
 });

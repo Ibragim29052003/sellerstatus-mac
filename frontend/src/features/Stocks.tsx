@@ -20,7 +20,9 @@ import {
   stockOf,
   stockTotals,
 } from '../data/selectors';
-import type { Snapshot, StockFilter } from '../data/types';
+import type { Snapshot } from '../data/types';
+import { Select } from '../components/Select';
+import { stockOptions } from '../data/options';
 import { ProductTile, Quantity, SectionTitle } from '../components/ui';
 export default function Stocks({ snapshot: s }: { snapshot: Snapshot }) {
   const ui = useAppSelector((state) => state.ui);
@@ -198,15 +200,12 @@ export default function Stocks({ snapshot: s }: { snapshot: Snapshot }) {
           </label>
           <label className="filter-select">
             <Filter size={16} />
-            <select
-              aria-label="Фильтр запаса"
+            <Select
+              label="Фильтр запаса"
               value={ui.stockFilter}
-              onChange={(e) => dispatch(actions.stockFilterChanged(e.target.value as StockFilter))}
-            >
-              <option value="all">Все состояния</option>
-              <option value="low">Низкий запас</option>
-              <option value="inTransit">Есть товары в пути</option>
-            </select>
+              options={stockOptions}
+              onChange={(value) => dispatch(actions.stockFilterChanged(value))}
+            />
           </label>
         </div>
         <div className="table-scroll">

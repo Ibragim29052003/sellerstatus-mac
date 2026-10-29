@@ -5,10 +5,12 @@ import {
   ChevronRight,
   CircleAlert,
   ExternalLink,
-  RefreshCw,
   Settings2,
   Truck,
 } from 'lucide-react';
+import { Select } from '../components/Select';
+import { RefreshButton } from '../components/RefreshButton';
+import { periodOptions } from '../data/options';
 import { Brand } from '../components/ui';
 import {
   buildAlerts,
@@ -18,7 +20,7 @@ import {
   sourceTime,
   stockTotals,
 } from '../data/selectors';
-import type { Page, Period, Snapshot } from '../data/types';
+import type { Page, Snapshot } from '../data/types';
 import { actions, useAppDispatch, useAppSelector } from '../app/store';
 export default function Panel({
   snapshot: s,
@@ -55,15 +57,12 @@ export default function Panel({
       </div>
       <div className="panel-period">
         <h1>Пульс магазина</h1>
-        <select
-          aria-label="Период"
+        <Select
+          label="Период"
           value={period}
-          onChange={(e) => dispatch(actions.periodChanged(e.target.value as Period))}
-        >
-          <option value="today">Сегодня</option>
-          <option value="yesterday">Вчера</option>
-          <option value="week">7 дней</option>
-        </select>
+          options={periodOptions}
+          onChange={(value) => dispatch(actions.periodChanged(value))}
+        />
       </div>
       <p className="panel-date">Вымышленные данные · 29 октября 2026</p>
       {alerts.length > 0 && (
@@ -126,14 +125,7 @@ export default function Panel({
           />
           {sourceTime(s.sources.operations)} МСК
         </span>
-        <button
-          className="icon-button"
-          aria-label="Перезагрузить демоснимок"
-          disabled={refreshing}
-          onClick={onRefresh}
-        >
-          <RefreshCw size={15} className={refreshing ? 'spinning' : ''} />
-        </button>
+        <RefreshButton label="Перезагрузить демоснимок" busy={refreshing} onClick={onRefresh} />
       </footer>
       <button className="primary-button panel-open" onClick={() => onOpen('overview')}>
         Открыть подробности

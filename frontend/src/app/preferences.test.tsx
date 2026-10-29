@@ -45,7 +45,8 @@ describe('Theme preferences', () => {
   it('persists an explicit selection and restores it for a new store', async () => {
     const { user, view } = setup();
     await user.click(screen.getByRole('button', { name: 'Настройки' }));
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Оформление' }), 'dark');
+    await user.click(screen.getByRole('combobox', { name: 'Оформление' }));
+    await user.click(screen.getByRole('option', { name: 'Тёмное' }));
     await waitFor(() => expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark'));
     expect(document.documentElement.dataset.theme).toBe('dark');
     view.unmount();

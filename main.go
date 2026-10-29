@@ -87,7 +87,7 @@ func main() {
 	service.app = app
 	panel := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name: "summary", Title: "SellerStatus — сводка", URL: "/?view=panel",
-		Width: 420, Height: 700, Frameless: true, AlwaysOnTop: true,
+		Width: 420, Height: 740, Frameless: true, AlwaysOnTop: true,
 		Hidden: true, DisableResize: true,
 		BackgroundColour: application.NewRGB(246, 247, 251),
 	})

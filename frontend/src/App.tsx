@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -8,110 +8,32 @@ import {
   CircleHelp,
   Command,
   LayoutDashboard,
-  Monitor,
   RefreshCw,
   Settings2,
   ShoppingBag,
   Wallet,
-  X,
 } from 'lucide-react';
 import { actions, useAppDispatch, useAppSelector } from './app/store';
 import { useSnapshotQuery } from './app/api';
 import { useAppearance } from './app/useAppearance';
 import { isDesktop, openDetails, openPanel, closePanel } from './app/desktop';
-import type { Page, Period, Scenario, Theme } from './data/types';
+import type { Page } from './data/types';
+import { periodOptions, scenarioOptions } from './data/options';
+import { Select } from './components/Select';
+import { RefreshButton } from './components/RefreshButton';
 import { Brand } from './components/ui';
 import Overview from './features/Overview';
 import Stocks from './features/Stocks';
 import Finance from './features/Finance';
 import Activity from './features/Activity';
 import Panel from './features/Panel';
+import Settings from './features/Settings';
 const pages = [
   { id: 'overview', label: 'Обзор', icon: LayoutDashboard },
   { id: 'stocks', label: 'Остатки и склады', icon: Boxes },
   { id: 'finance', label: 'Финансы', icon: Wallet },
   { id: 'activity', label: 'Продажи и возвраты', icon: ShoppingBag },
 ] as const;
-const scenarios: { id: Scenario; label: string }[] = [
-  { id: 'normal', label: 'Обычный день' },
-  { id: 'loss', label: 'Убыток' },
-  { id: 'partial', label: 'Неполные данные' },
-  { id: 'stale', label: 'Устаревшие остатки' },
-  { id: 'empty', label: 'Пустой кабинет' },
-  { id: 'error', label: 'Ошибка сервера' },
-];
-function Settings() {
-  const dispatch = useAppDispatch();
-  const { settingsOpen, theme, scenario, themeError } = useAppSelector((state) => state.ui);
-  const dialog = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    if (settingsOpen) dialog.current?.showModal();
-    else dialog.current?.close();
-  }, [settingsOpen]);
-  return (
-    <dialog
-      ref={dialog}
-      className="settings-dialog"
-      onCancel={() => dispatch(actions.settingsToggled())}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) dispatch(actions.settingsToggled());
-      }}
-    >
-      <div className="modal-heading">
-        <h2>Настройки прототипа</h2>
-        <button
-          className="icon-button"
-          aria-label="Закрыть настройки"
-          onClick={() => dispatch(actions.settingsToggled())}
-        >
-          <X size={20} />
-        </button>
-      </div>
-      <label className="settings-field">
-        Оформление
-        <select
-          value={theme}
-          onChange={(e) => dispatch(actions.themeChanged(e.target.value as Theme))}
-        >
-          <option value="light">Светлое</option>
-          <option value="dark">Тёмное</option>
-          <option value="system">Как в системе</option>
-        </select>
-      </label>
-      {themeError && (
-        <p role="alert" className="inline-warning">
-          {themeError}
-        </p>
-      )}
-      <p className="settings-hint">
-        По умолчанию — тема macOS. Выбор сохраняется и применяется к обоим окнам.
-      </p>
-      <label className="settings-field">
-        Демонстрационный сценарий
-        <select
-          value={scenario}
-          onChange={(e) => dispatch(actions.scenarioChanged(e.target.value as Scenario))}
-        >
-          {scenarios.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="settings-info">
-        <Monitor size={20} />
-        <p>
-          Сейчас приложение работает на вымышленных данных. Авторизация SellerStatus, уведомления и
-          автозапуск ещё не подключены.
-        </p>
-      </div>
-      <button className="primary-button" onClick={() => dispatch(actions.settingsToggled())}>
-        Готово
-      </button>
-    </dialog>
-  );
-}
 export default function App() {
   const dispatch = useAppDispatch();
   const ui = useAppSelector((state) => state.ui);
@@ -273,14 +195,11 @@ export default function App() {
           </div>
           <div className="topbar-actions">
             <span className="demo-badge">ДЕМО · БЕЗ WB API</span>
-            <button
-              className="icon-button"
-              aria-label="Обновить демоданные"
-              disabled={isFetching}
+            <RefreshButton
+              label="Обновить демоданные"
+              busy={isFetching}
               onClick={() => void refetch()}
-            >
-              <RefreshCw size={17} className={isFetching ? 'spinning' : ''} />
-            </button>
+            />
             <button
               className="icon-button"
               aria-label="О возможностях уведомлений"
@@ -298,18 +217,12 @@ export default function App() {
               Личный кабинет продавца
             </span>
             <div className="period-tabs" role="group" aria-label="Период">
-              {(
-                [
-                  { id: 'today', label: 'Сегодня' },
-                  { id: 'yesterday', label: 'Вчера' },
-                  { id: 'week', label: '7 дней' },
-                ] satisfies { id: Period; label: string }[]
-              ).map((period) => (
+              {periodOptions.map((period) => (
                 <button
-                  key={period.id}
-                  aria-pressed={ui.period === period.id}
-                  className={ui.period === period.id ? 'selected' : ''}
-                  onClick={() => dispatch(actions.periodChanged(period.id))}
+                  key={period.value}
+                  aria-pressed={ui.period === period.value}
+                  className={ui.period === period.value ? 'selected' : ''}
+                  onClick={() => dispatch(actions.periodChanged(period.value))}
                 >
                   {period.label}
                 </button>
@@ -325,17 +238,12 @@ export default function App() {
           </span>
           <label>
             Демосценарий
-            <select
-              aria-label="Демосценарий"
+            <Select
+              label="Демосценарий"
               value={ui.scenario}
-              onChange={(e) => dispatch(actions.scenarioChanged(e.target.value as Scenario))}
-            >
-              {scenarios.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+              options={scenarioOptions}
+              onChange={(value) => dispatch(actions.scenarioChanged(value))}
+            />
           </label>
         </footer>
       </div>

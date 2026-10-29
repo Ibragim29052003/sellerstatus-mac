@@ -32,11 +32,13 @@ describe('Seller workspace', () => {
   it('hides full profit for incomplete data and recovers from error scenario', async () => {
     const user = setup();
     await screen.findByRole('heading', { name: 'Всё под контролем.' });
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Демосценарий' }), 'partial');
+    await user.click(screen.getByRole('combobox', { name: 'Демосценарий' }));
+    await user.click(screen.getByRole('option', { name: 'Неполные данные' }));
     await screen.findByText('Недостаточно данных');
     await user.click(screen.getByRole('button', { name: 'Финансы' }));
     expect(screen.getByText('Не определён')).toBeInTheDocument();
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Демосценарий' }), 'error');
+    await user.click(screen.getByRole('combobox', { name: 'Демосценарий' }));
+    await user.click(screen.getByRole('option', { name: 'Ошибка сервера' }));
     await screen.findByRole('alert');
     expect(screen.queryByText('Состав расчёта')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Вернуться к демосводке' }));
@@ -51,11 +53,14 @@ describe('Demo states and period navigation', () => {
     await user.click(screen.getByRole('button', { name: '7 дней' }));
     await screen.findByRole('button', { name: /Выкупы.*756/ });
     expect(screen.getByRole('button', { name: /На складах WB/ })).toHaveTextContent('1 040');
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Демосценарий' }), 'stale');
+    await user.click(screen.getByRole('combobox', { name: 'Демосценарий' }));
+    await user.click(screen.getByRole('option', { name: 'Устаревшие остатки' }));
     await screen.findByRole('button', { name: /Остатки давно не обновлялись/ });
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Демосценарий' }), 'empty');
+    await user.click(screen.getByRole('combobox', { name: 'Демосценарий' }));
+    await user.click(screen.getByRole('option', { name: 'Пустой кабинет' }));
     await screen.findByRole('heading', { name: 'Начнём с чистого листа' });
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Демосценарий' }), 'loss');
+    await user.click(screen.getByRole('combobox', { name: 'Демосценарий' }));
+    await user.click(screen.getByRole('option', { name: 'Убыток' }));
     await screen.findByRole('button', { name: /Расчётный результат отрицательный/ });
   });
 });
