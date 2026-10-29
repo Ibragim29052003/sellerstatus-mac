@@ -38,7 +38,9 @@ static NSRect panelFrame(NSWindow *window) {
     NSRect available = screen.visibleFrame;
     CGFloat width = MIN(420.0, available.size.width - 32.0);
     CGFloat height = MIN(700.0, available.size.height - 32.0);
-    return NSMakeRect(NSMidX(available) - width / 2.0, NSMidY(available) - height / 2.0, width, height);
+    // Keep all controls below the notch and menu bar, including external displays.
+    CGFloat safeTop = MIN(NSMaxY(available), NSMaxY(screen.frame) - screen.safeAreaInsets.top);
+    return NSMakeRect(NSMidX(available) - width / 2.0, safeTop - height - 8.0, width, height);
 }
 void ssShowPanel(void *handle) {
     NSWindow *window = (NSWindow *)handle;
@@ -48,7 +50,7 @@ void ssShowPanel(void *handle) {
     objc_setAssociatedObject(window, &closingKey, @NO, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     NSRect target = panelFrame(window);
     NSRect start = NSInsetRect(target, 5.0, 7.0);
-    start.origin.y -= 8.0;
+    start.origin.y += 22.0;
     window.animationBehavior = NSWindowAnimationBehaviorNone;
     [window setFrame:start display:NO];
     window.alphaValue = duration() > 0 ? 0.0 : 1.0;
@@ -67,7 +69,7 @@ void ssHidePanel(void *handle) {
     NSUInteger generation = nextGeneration(window);
     objc_setAssociatedObject(window, &closingKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     NSRect target = NSInsetRect(window.frame, 4.0, 5.0);
-    target.origin.y -= 6.0;
+    target.origin.y += 18.0;
     [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
         context.duration = duration();
         context.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseIn];
