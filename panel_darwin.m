@@ -1,5 +1,6 @@
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/QuartzCore.h>
+#import <WebKit/WebKit.h>
 #import <objc/runtime.h>
 
 // Public AppKit APIs only. Every entry point is called on the main thread.
@@ -29,7 +30,15 @@ static BOOL isCurrent(NSWindow *window, NSUInteger generation) {
 static NSTimeInterval duration(void) {
     return NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion ? 0.0 : 0.20;
 }
-static NSRect panelFrame(NSWindow *window) {
+static WKWebView *findWebView(NSView *view) {
+    if ([view isKindOfClass:WKWebView.class]) return (WKWebView *)view;
+    for (NSView *child in view.subviews) {
+        WKWebView *found = findWebView(child);
+        if (found != nil) return found;
+    }
+    return nil;
+}
+static NSRect panelFrame(CGFloat *topInset) {
     NSScreen *screen = NSScreen.mainScreen;
     NSPoint pointer = NSEvent.mouseLocation;
     for (NSScreen *candidate in NSScreen.screens) {
@@ -37,10 +46,25 @@ static NSRect panelFrame(NSWindow *window) {
     }
     NSRect available = screen.visibleFrame;
     CGFloat width = MIN(420.0, available.size.width - 32.0);
-    CGFloat height = MIN(740.0, available.size.height - 32.0);
-    // Keep all controls below the notch and menu bar, including external displays.
-    CGFloat safeTop = MIN(NSMaxY(available), NSMaxY(screen.frame) - screen.safeAreaInsets.top);
-    return NSMakeRect(NSMidX(available) - width / 2.0, safeTop - height - 8.0, width, height);
+    // The background reaches the physical edge; interactive content stays below
+    // the camera housing/menu bar. A display without a notch uses its menu height.
+    *topInset = MAX(screen.safeAreaInsets.top, NSMaxY(screen.frame) - NSMaxY(available));
+    CGFloat height = MIN(740.0 + *topInset, NSMaxY(screen.frame) - NSMinY(available) - 16.0);
+    return NSMakeRect(NSMidX(screen.frame) - width / 2.0, NSMaxY(screen.frame) - height, width, height);
+}
+static void layoutPanel(NSWindow *window, CGFloat topInset) {
+    NSView *root = window.contentView;
+    window.level = NSStatusWindowLevel;
+    window.opaque = NO;
+    window.backgroundColor = NSColor.clearColor;
+    root.wantsLayer = YES;
+    root.layer.backgroundColor = NSColor.blackColor.CGColor;
+    root.layer.cornerRadius = 16.0;
+    root.layer.maskedCorners = kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner;
+    root.layer.masksToBounds = YES;
+    WKWebView *webView = findWebView(root);
+    webView.frame = NSMakeRect(0, 0, NSWidth(root.bounds), MAX(1, NSHeight(root.bounds) - topInset));
+    webView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
 }
 void ssShowPanel(void *handle) {
     NSWindow *window = (NSWindow *)handle;
@@ -48,11 +72,15 @@ void ssShowPanel(void *handle) {
     observeDismissal(window);
     nextGeneration(window);
     objc_setAssociatedObject(window, &closingKey, @NO, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    NSRect target = panelFrame(window);
-    NSRect start = NSInsetRect(target, 5.0, 7.0);
+    CGFloat topInset = 0;
+    NSRect target = panelFrame(&topInset);
+    // Keep the web viewport constant for the whole animation: changing its size
+    // can wrap text and momentarily create a document scrollbar.
+    NSRect start = target;
     start.origin.y += 22.0;
     window.animationBehavior = NSWindowAnimationBehaviorNone;
     [window setFrame:start display:NO];
+    layoutPanel(window, topInset);
     window.alphaValue = duration() > 0 ? 0.0 : 1.0;
     [NSApp activateIgnoringOtherApps:YES];
     [window makeKeyAndOrderFront:nil];
@@ -68,7 +96,7 @@ void ssHidePanel(void *handle) {
     if (window == nil || !window.visible || [objc_getAssociatedObject(window, &closingKey) boolValue]) return;
     NSUInteger generation = nextGeneration(window);
     objc_setAssociatedObject(window, &closingKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    NSRect target = NSInsetRect(window.frame, 4.0, 5.0);
+    NSRect target = window.frame;
     target.origin.y += 18.0;
     [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
         context.duration = duration();

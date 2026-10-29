@@ -84,9 +84,6 @@
   min-height: 32px;
   padding: 5px 8px;
 }
-.panel-host {
-  overflow-y: auto;
-}
 .app-footer label {
   flex-wrap: wrap;
 }

@@ -89,6 +89,7 @@ func main() {
 		Name: "summary", Title: "SellerStatus — сводка", URL: "/?view=panel",
 		Width: 420, Height: 740, Frameless: true, AlwaysOnTop: true,
 		Hidden: true, DisableResize: true,
+		Mac: application.MacWindow{CornerType: application.MacWindowCornerTypeSquare},
 		BackgroundColour: application.NewRGB(246, 247, 251),
 	})
 	details := app.Window.NewWithOptions(application.WebviewWindowOptions{

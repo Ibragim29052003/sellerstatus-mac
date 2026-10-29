@@ -1265,7 +1265,9 @@ th:first-child {
   width: 100%;
 }
 .panel-host {
-  min-height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  overflow-x: clip;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1274,6 +1276,7 @@ th:first-child {
   padding: 18px;
 }
 .tray-panel {
+  flex-shrink: 0;
   background: var(--surface);
   width: 100%;
   max-width: 420px;
@@ -1911,6 +1914,12 @@ th:first-child {
 
 :root[data-desktop='true'] .tray-panel {
   animation: none;
+}
+:root[data-view='panel'],
+:root[data-view='panel'] body,
+:root[data-view='panel'] #root {
+  height: 100%;
+  overflow: hidden;
 }
 .settings-hint {
   font-size: var(--font-sm);
