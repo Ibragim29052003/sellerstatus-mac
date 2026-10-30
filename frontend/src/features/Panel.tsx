@@ -2,6 +2,8 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Boxes,
+  Calculator,
+  LoaderCircle,
   ChevronRight,
   CircleAlert,
   ExternalLink,
@@ -29,6 +31,9 @@ export default function Panel({
   onRefresh,
   loadNotice,
   retryBlocked = false,
+  onPlanner,
+  plannerBusy = false,
+  plannerError,
 }: {
   snapshot: Snapshot;
   onOpen: (page: Page) => void;
@@ -36,6 +41,9 @@ export default function Panel({
   onRefresh: () => void;
   loadNotice?: ReactNode;
   retryBlocked?: boolean;
+  onPlanner: () => void;
+  plannerBusy?: boolean;
+  plannerError?: string | null;
 }) {
   const dispatch = useAppDispatch();
   const period = useAppSelector((state) => state.ui.period);
@@ -131,10 +139,34 @@ export default function Panel({
             disabled={retryBlocked}
           />
         </footer>
-        <button className="primary-button panel-open" onClick={() => onOpen('overview')}>
-          Открыть подробности
-          <ExternalLink size={16} />
-        </button>
+        {plannerError && (
+          <p className="inline-warning" role="alert">
+            {plannerError}
+          </p>
+        )}
+        <div className="panel-launch-actions">
+          <button
+            className="primary-button panel-open"
+            aria-label="Открыть подробности"
+            onClick={() => onOpen('overview')}
+          >
+            Подробнее
+            <ExternalLink size={16} />
+          </button>
+          <button
+            className="secondary-button"
+            onClick={onPlanner}
+            disabled={plannerBusy}
+            aria-busy={plannerBusy}
+          >
+            {plannerBusy ? (
+              <LoaderCircle size={16} className="spinning" />
+            ) : (
+              <Calculator size={16} />
+            )}
+            {plannerBusy ? 'Открываем…' : 'Планировщик'}
+          </button>
+        </div>
       </div>
     </div>
   );

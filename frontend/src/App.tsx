@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowUpRight,
   Bell,
   Boxes,
+  Calculator,
   CircleAlert,
   CircleHelp,
   Command,
@@ -16,7 +17,7 @@ import {
 import { actions, useAppDispatch, useAppSelector } from './app/store';
 import { useSnapshotQuery } from './app/api';
 import { useAppearance } from './app/useAppearance';
-import { isDesktop, openDetails, openPanel, closePanel } from './app/desktop';
+import { isDesktop, openDetails, openPanel, closePanel, openPlanner } from './app/desktop';
 import type { Page } from './data/types';
 import { periodOptions, scenarioOptions } from './data/options';
 import { Select } from './components/Select';
@@ -27,6 +28,7 @@ import Stocks from './features/Stocks';
 import Finance from './features/Finance';
 import Activity from './features/Activity';
 import Panel from './features/Panel';
+import Planner from './features/Planner';
 import Settings from './features/Settings';
 import { canShowPrevious, toLoadIssue } from './data/loading/errors';
 import { LoadNotice } from './components/LoadNotice';
@@ -37,6 +39,7 @@ const pages = [
   { id: 'stocks', label: 'Остатки и склады', icon: Boxes },
   { id: 'finance', label: 'Финансы', icon: Wallet },
   { id: 'activity', label: 'Продажи и возвраты', icon: ShoppingBag },
+  { id: 'planner', label: 'Планировщик поставок', icon: Calculator },
 ] as const;
 export default function App() {
   const dispatch = useAppDispatch();
@@ -69,6 +72,27 @@ export default function App() {
       />
     ) : undefined;
   const [desktopError, setDesktopError] = useState<string | null>(null);
+  const [plannerBusy, setPlannerBusy] = useState(false);
+  const [plannerError, setPlannerError] = useState<string | null>(null);
+  const plannerPending = useRef(false);
+  const launchPlanner = async () => {
+    if (plannerPending.current) return;
+    plannerPending.current = true;
+    setPlannerBusy(true);
+    setPlannerError(null);
+    try {
+      await openPlanner();
+    } catch {
+      setPlannerError(
+        isDesktop()
+          ? 'Не удалось открыть планировщик. Повторите попытку. Если ошибка сохранится, проверьте, что модуль C# включён в сборку.'
+          : 'Планировщик доступен в приложении SellerStatus для Mac.',
+      );
+    } finally {
+      plannerPending.current = false;
+      setPlannerBusy(false);
+    }
+  };
   useAppearance();
   useInputModality();
   useEffect(() => {
@@ -82,6 +106,11 @@ export default function App() {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [panel, ui.settingsOpen]);
   const open = async (page: Page) => {
+    if (page === 'planner') {
+      if (!panel) dispatch(actions.pageChanged(page));
+      await launchPlanner();
+      return;
+    }
     if (panel) {
       try {
         await openDetails(page, ui.period, ui.scenario);
@@ -91,47 +120,53 @@ export default function App() {
       }
     } else dispatch(actions.pageChanged(page));
   };
-  const content = fatal ? (
-    <div className="empty-card error-card" role="alert">
-      <CircleAlert size={32} />
-      <h2>Не удалось загрузить сводку</h2>
-      <p>{issue.message}</p>
-      <small>Это проверка на демоданных. Данные реального кабинета не запрашиваются.</small>
-      <button
-        className="primary-button"
-        onClick={() => dispatch(actions.scenarioChanged('normal'))}
-      >
-        Вернуться к демосводке
-      </button>
-      <button className="text-button" disabled={isFetching || retrySeconds > 0} onClick={refresh}>
-        {retrySeconds > 0 ? `Повтор через ${retrySeconds} с` : 'Повторить загрузку'}
-        <RefreshCw size={15} />
-      </button>
-    </div>
-  ) : !snapshot ? (
-    <div className="loading-state" role="status">
-      <span className="loading-orbit" />
-      <strong>Собираем картину магазина</strong>
-      <p>Загружаем демонстрационный снимок…</p>
-    </div>
-  ) : panel ? (
-    <Panel
-      snapshot={snapshot}
-      onOpen={(page) => void open(page)}
-      refreshing={isFetching}
-      onRefresh={refresh}
-      loadNotice={loadNotice}
-      retryBlocked={retrySeconds > 0}
-    />
-  ) : ui.page === 'stocks' ? (
-    <Stocks snapshot={snapshot} />
-  ) : ui.page === 'finance' ? (
-    <Finance snapshot={snapshot} />
-  ) : ui.page === 'activity' ? (
-    <Activity snapshot={snapshot} />
-  ) : (
-    <Overview snapshot={snapshot} />
-  );
+  const content =
+    !panel && ui.page === 'planner' ? (
+      <Planner busy={plannerBusy} error={plannerError} onOpen={() => void launchPlanner()} />
+    ) : fatal ? (
+      <div className="empty-card error-card" role="alert">
+        <CircleAlert size={32} />
+        <h2>Не удалось загрузить сводку</h2>
+        <p>{issue.message}</p>
+        <small>Это проверка на демоданных. Данные реального кабинета не запрашиваются.</small>
+        <button
+          className="primary-button"
+          onClick={() => dispatch(actions.scenarioChanged('normal'))}
+        >
+          Вернуться к демосводке
+        </button>
+        <button className="text-button" disabled={isFetching || retrySeconds > 0} onClick={refresh}>
+          {retrySeconds > 0 ? `Повтор через ${retrySeconds} с` : 'Повторить загрузку'}
+          <RefreshCw size={15} />
+        </button>
+      </div>
+    ) : !snapshot ? (
+      <div className="loading-state" role="status">
+        <span className="loading-orbit" />
+        <strong>Собираем картину магазина</strong>
+        <p>Загружаем демонстрационный снимок…</p>
+      </div>
+    ) : panel ? (
+      <Panel
+        snapshot={snapshot}
+        onOpen={(page) => void open(page)}
+        refreshing={isFetching}
+        onRefresh={refresh}
+        loadNotice={loadNotice}
+        retryBlocked={retrySeconds > 0}
+        onPlanner={() => void launchPlanner()}
+        plannerBusy={plannerBusy}
+        plannerError={plannerError}
+      />
+    ) : ui.page === 'stocks' ? (
+      <Stocks snapshot={snapshot} />
+    ) : ui.page === 'finance' ? (
+      <Finance snapshot={snapshot} />
+    ) : ui.page === 'activity' ? (
+      <Activity snapshot={snapshot} />
+    ) : (
+      <Overview snapshot={snapshot} />
+    );
   if (panel)
     return (
       <div className="panel-host">
@@ -176,7 +211,7 @@ export default function App() {
               key={page.id}
               className={`nav-link ${ui.page === page.id ? 'active' : ''}`}
               aria-current={ui.page === page.id ? 'page' : undefined}
-              onClick={() => dispatch(actions.pageChanged(page.id))}
+              onClick={() => void open(page.id)}
             >
               <page.icon size={19} />
               {page.label}
@@ -223,12 +258,14 @@ export default function App() {
           </div>
           <div className="topbar-actions">
             <span className="demo-badge">ДЕМО · БЕЗ WB API</span>
-            <RefreshButton
-              label="Обновить демоданные"
-              busy={isFetching}
-              disabled={retrySeconds > 0}
-              onClick={refresh}
-            />
+            {ui.page !== 'planner' && (
+              <RefreshButton
+                label="Обновить демоданные"
+                busy={isFetching}
+                disabled={retrySeconds > 0}
+                onClick={refresh}
+              />
+            )}
             <button
               className="icon-button"
               aria-label="О возможностях уведомлений"
@@ -240,25 +277,27 @@ export default function App() {
           </div>
         </header>
         <main id="main-content">
-          <div className="context-bar">
-            <span>
-              <span className="live-indicator" />
-              Личный кабинет продавца
-            </span>
-            <div className="period-tabs" role="group" aria-label="Период">
-              {periodOptions.map((period) => (
-                <button
-                  key={period.value}
-                  aria-pressed={ui.period === period.value}
-                  className={ui.period === period.value ? 'selected' : ''}
-                  onClick={() => dispatch(actions.periodChanged(period.value))}
-                >
-                  {period.label}
-                </button>
-              ))}
+          {ui.page !== 'planner' && (
+            <div className="context-bar">
+              <span>
+                <span className="live-indicator" />
+                Личный кабинет продавца
+              </span>
+              <div className="period-tabs" role="group" aria-label="Период">
+                {periodOptions.map((period) => (
+                  <button
+                    key={period.value}
+                    aria-pressed={ui.period === period.value}
+                    className={ui.period === period.value ? 'selected' : ''}
+                    onClick={() => dispatch(actions.periodChanged(period.value))}
+                  >
+                    {period.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-          {loadNotice}
+          )}
+          {loadNotice && ui.page !== 'planner' ? loadNotice : null}
           {content}
         </main>
         <footer className="app-footer">
@@ -266,15 +305,17 @@ export default function App() {
             <CircleHelp size={14} />
             Реальные данные пока не подключены
           </span>
-          <label>
-            Демосценарий
-            <Select
-              label="Демосценарий"
-              value={ui.scenario}
-              options={scenarioOptions}
-              onChange={(value) => dispatch(actions.scenarioChanged(value))}
-            />
-          </label>
+          {ui.page !== 'planner' && (
+            <label>
+              Демосценарий
+              <Select
+                label="Демосценарий"
+                value={ui.scenario}
+                options={scenarioOptions}
+                onChange={(value) => dispatch(actions.scenarioChanged(value))}
+              />
+            </label>
+          )}
         </footer>
       </div>
       <Settings />

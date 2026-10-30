@@ -22,3 +22,9 @@ export async function closePanel(): Promise<void> {
     await Call.ByName('main.DesktopService.ClosePanel');
   }
 }
+
+export async function openPlanner(): Promise<void> {
+  if (!isDesktop()) throw new Error('Планировщик открывается в приложении для Mac.');
+  const { Call } = await import('@wailsio/runtime');
+  await Call.ByName('main.DesktopService.OpenPlanner');
+}

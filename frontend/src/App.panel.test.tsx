@@ -4,11 +4,13 @@ import { Provider } from 'react-redux';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { createAppStore } from './app/store';
-import { closePanel, openDetails } from './app/desktop';
+import { SourceError } from './data/loading/errors';
+import { closePanel, openDetails, openPlanner } from './app/desktop';
 vi.mock('./app/desktop', () => ({
   isDesktop: () => true,
   closePanel: vi.fn().mockResolvedValue(undefined),
   openPanel: vi.fn(),
+  openPlanner: vi.fn().mockResolvedValue(undefined),
   openDetails: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('./app/preferences', () => ({
@@ -29,6 +31,49 @@ function setup() {
   return userEvent.setup();
 }
 describe('Desktop summary', () => {
+  it('opens the independent planner even if the summary cannot load', async () => {
+    window.history.replaceState(null, '', '/');
+    render(
+      <Provider
+        store={createAppStore({
+          read: async () => {
+            throw new SourceError('unauthorized');
+          },
+        })}
+      >
+        <App />
+      </Provider>,
+    );
+    await screen.findByRole('heading', { name: 'Не удалось загрузить сводку' });
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Планировщик поставок' }));
+    expect(openPlanner).toHaveBeenCalledOnce();
+    expect(
+      screen.getByRole('heading', { name: 'От остатков — к плану поставки' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Не удалось загрузить сводку' }),
+    ).not.toBeInTheDocument();
+  });
+  it('opens the planner directly, blocks duplicate clicks, and allows retry after failure', async () => {
+    let reject: (error: Error) => void = () => {};
+    vi.mocked(openPlanner).mockImplementationOnce(
+      () =>
+        new Promise((_resolve, fail) => {
+          reject = fail;
+        }),
+    );
+    const user = setup();
+    await screen.findByRole('button', { name: 'Планировщик' });
+    await user.click(screen.getByRole('button', { name: 'Планировщик' }));
+    expect(screen.getByRole('button', { name: 'Открываем…' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Открываем…' }));
+    expect(openPlanner).toHaveBeenCalledOnce();
+    expect(openDetails).not.toHaveBeenCalled();
+    reject(new Error('unavailable'));
+    await screen.findByRole('alert');
+    await user.click(screen.getByRole('button', { name: 'Планировщик' }));
+    expect(openPlanner).toHaveBeenCalledTimes(2);
+  });
   it('focuses the settings title rather than the close button and distinguishes pointer from keyboard input', async () => {
     const user = setup();
     await screen.findByRole('heading', { name: 'Пульс магазина' });

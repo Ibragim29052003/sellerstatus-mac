@@ -25,7 +25,7 @@ const requestedPage = params.get('page');
 const requestedPeriod = params.get('period');
 const requestedScenario = params.get('scenario');
 const initialState: UiState = {
-  page: ['overview', 'stocks', 'finance', 'activity'].includes(requestedPage ?? '')
+  page: ['overview', 'stocks', 'finance', 'activity', 'planner'].includes(requestedPage ?? '')
     ? (requestedPage as Page)
     : 'overview',
   period: ['today', 'yesterday', 'week'].includes(requestedPeriod ?? '')

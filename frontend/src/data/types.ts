@@ -9,7 +9,7 @@ export type Scenario =
   | 'retry'
   | 'refreshError'
   | 'invalid';
-export type Page = 'overview' | 'stocks' | 'finance' | 'activity';
+export type Page = 'overview' | 'stocks' | 'finance' | 'activity' | 'planner';
 export type StockFilter = 'all' | 'low' | 'inTransit';
 export type Theme = 'light' | 'dark' | 'system';
 export interface StockPosition {
