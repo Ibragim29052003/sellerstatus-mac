@@ -29,8 +29,8 @@ static NSUInteger nextGeneration(NSWindow *window) {
 static BOOL isCurrent(NSWindow *window, NSUInteger generation) {
     return [objc_getAssociatedObject(window, &generationKey) unsignedIntegerValue] == generation;
 }
-static NSTimeInterval duration(void) {
-    return NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion ? 0.0 : 0.20;
+static NSTimeInterval duration(BOOL opening) {
+    return NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion ? 0.0 : (opening ? 0.36 : 0.24);
 }
 static WKWebView *findWebView(NSView *view) {
     if ([view isKindOfClass:WKWebView.class]) return (WKWebView *)view;
@@ -83,53 +83,124 @@ static void layoutPanel(NSWindow *window) {
     webView.frame = root.bounds;
     webView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
 }
+static CGPathRef revealPath(NSRect bounds, CGFloat visibleHeight) {
+    CGFloat left = NSMinX(bounds), right = NSMaxX(bounds), top = NSMaxY(bounds);
+    CGFloat height = MAX(0, MIN(visibleHeight, NSHeight(bounds)));
+    CGFloat bottom = top - height;
+    CGFloat radius = MIN(16.0, height / 2.0);
+    CGFloat curve = radius * 0.55228475;
+    CGMutablePathRef path = CGPathCreateMutable();
+    CGPathMoveToPoint(path, NULL, left, top);
+    CGPathAddLineToPoint(path, NULL, right, top);
+    CGPathAddLineToPoint(path, NULL, right, bottom + radius);
+    CGPathAddCurveToPoint(path, NULL, right, bottom + radius - curve, right - radius + curve, bottom, right - radius, bottom);
+    CGPathAddLineToPoint(path, NULL, left + radius, bottom);
+    CGPathAddCurveToPoint(path, NULL, left + radius - curve, bottom, left, bottom + radius - curve, left, bottom + radius);
+    CGPathAddLineToPoint(path, NULL, left, top);
+    CGPathCloseSubpath(path);
+    return path;
+}
+static void resetReveal(NSWindow *window) {
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    [window.contentView.layer.mask removeAnimationForKey:@"sellerstatus.reveal"];
+    window.contentView.layer.mask = nil;
+    [CATransaction commit];
+    window.ignoresMouseEvents = NO;
+    window.hasShadow = YES;
+}
+static void revealPanel(NSWindow *window, BOOL opening, NSUInteger generation) {
+    NSView *root = window.contentView;
+    NSTimeInterval interval = duration(opening);
+    if (interval == 0) {
+        if (!opening) [window orderOut:nil];
+        resetReveal(window);
+        objc_setAssociatedObject(window, &closingKey, @NO, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        return;
+    }
+    CAShapeLayer *mask = (CAShapeLayer *)root.layer.mask;
+    CGPathRef current = ((CAShapeLayer *)mask.presentationLayer).path;
+    if (current == NULL) current = mask.path;
+    CGPathRef from = current != NULL ? CGPathCreateCopy(current) : revealPath(root.bounds, opening ? 0 : NSHeight(root.bounds));
+    CGPathRef to = revealPath(root.bounds, opening ? NSHeight(root.bounds) : 0);
+    if (mask == nil) mask = [CAShapeLayer layer];
+
+    // Clip a fixed-size viewport instead of resizing WKWebView or moving a whole
+    // window across adjacent displays. On interruption continue from the current
+    // presentation path, so rapid open/close never jumps back to an endpoint.
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    mask.frame = root.bounds;
+    mask.fillColor = NSColor.blackColor.CGColor;
+    mask.path = from;
+    root.layer.mask = mask;
+    [mask removeAnimationForKey:@"sellerstatus.reveal"];
+    [CATransaction commit];
+    window.ignoresMouseEvents = YES;
+    window.hasShadow = NO;
+
+    CABasicAnimation *animation = [CABasicAnimation animationWithKeyPath:@"path"];
+    animation.fromValue = (id)from;
+    animation.toValue = (id)to;
+    animation.duration = interval;
+    animation.timingFunction = opening
+        ? [CAMediaTimingFunction functionWithControlPoints:0.22 :0.85 :0.28 :1.0]
+        : [CAMediaTimingFunction functionWithControlPoints:0.4 :0.0 :0.8 :0.4];
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    [CATransaction setCompletionBlock:^{
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (!isCurrent(window, generation)) return;
+            if (!opening) [window orderOut:nil];
+            resetReveal(window);
+            objc_setAssociatedObject(window, &closingKey, @NO, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        });
+    }];
+    mask.path = to;
+    [mask addAnimation:animation forKey:@"sellerstatus.reveal"];
+    [CATransaction commit];
+    CGPathRelease(from);
+    CGPathRelease(to);
+}
 void ssShowPanel(void *handle) {
     NSWindow *window = (NSWindow *)handle;
     if (window == nil) return;
+    if (window.visible && ![objc_getAssociatedObject(window, &closingKey) boolValue] && objc_getAssociatedObject(window, &layoutKey) != nil) {
+        [NSApp activateIgnoringOtherApps:YES];
+        [window makeKeyAndOrderFront:nil];
+        return;
+    }
     observeDismissal(window);
     NSUInteger generation = nextGeneration(window);
     objc_setAssociatedObject(window, &closingKey, @NO, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     SSPanelLayout layout;
     NSRect target = panelFrame(&layout);
     objc_setAssociatedObject(window, &layoutKey, @{ @"cutoutWidth": @(layout.cutoutWidth), @"headerHeight": @(layout.headerHeight) }, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    // Keep the web viewport constant for the whole animation: changing its size
-    // can wrap text and momentarily create a document scrollbar.
-    NSRect start = target;
-    start.origin.y += 22.0;
     window.animationBehavior = NSWindowAnimationBehaviorNone;
-    [window setFrame:start display:NO];
+    [window setFrame:target display:NO];
     layoutPanel(window);
-    window.alphaValue = duration() > 0 ? 0.0 : 1.0;
+    window.alphaValue = 1.0;
+    // Install the collapsed mask before exposing a hidden window, avoiding a
+    // single full-frame flash before the first Core Animation transaction.
+    if (!window.visible && duration(YES) > 0) {
+        CAShapeLayer *mask = [CAShapeLayer layer];
+        mask.frame = window.contentView.bounds;
+        CGPathRef path = revealPath(window.contentView.bounds, 0);
+        mask.path = path;
+        CGPathRelease(path);
+        window.contentView.layer.mask = mask;
+        window.hasShadow = NO;
+    }
     [NSApp activateIgnoringOtherApps:YES];
     [window makeKeyAndOrderFront:nil];
-    [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
-        context.duration = duration();
-        context.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut];
-        [[window animator] setFrame:target display:YES];
-        [[window animator] setAlphaValue:1.0];
-    } completionHandler:^{
-        if (isCurrent(window, generation)) [window setFrame:target display:YES];
-    }];
+    revealPanel(window, YES, generation);
 }
 void ssHidePanel(void *handle) {
     NSWindow *window = (NSWindow *)handle;
     if (window == nil || !window.visible || [objc_getAssociatedObject(window, &closingKey) boolValue]) return;
     NSUInteger generation = nextGeneration(window);
     objc_setAssociatedObject(window, &closingKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    NSRect target = window.frame;
-    target.origin.y += 18.0;
-    [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
-        context.duration = duration();
-        context.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseIn];
-        [[window animator] setFrame:target display:YES];
-        [[window animator] setAlphaValue:0.0];
-    } completionHandler:^{
-        // A quick reopen invalidates this callback, so it cannot hide a new panel.
-        if (!isCurrent(window, generation)) return;
-        [window orderOut:nil];
-        window.alphaValue = 1.0;
-        objc_setAssociatedObject(window, &closingKey, @NO, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    }];
+    revealPanel(window, NO, generation);
 }
 void ssTogglePanel(void *handle) {
     NSWindow *window = (NSWindow *)handle;
