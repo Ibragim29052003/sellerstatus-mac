@@ -29,6 +29,19 @@ function setup() {
   return userEvent.setup();
 }
 describe('Desktop summary', () => {
+  it('focuses the settings title rather than the close button and distinguishes pointer from keyboard input', async () => {
+    const user = setup();
+    await screen.findByRole('heading', { name: 'Пульс магазина' });
+    await user.click(screen.getByRole('button', { name: 'Открыть настройки' }));
+    expect(screen.getByRole('heading', { name: 'Настройки прототипа' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Закрыть настройки' })).not.toHaveFocus();
+    expect(document.documentElement.dataset.inputModality).toBe('pointer');
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Закрыть настройки' })).toHaveFocus();
+    expect(document.documentElement.dataset.inputModality).toBe('keyboard');
+    await user.click(screen.getByRole('combobox', { name: 'Оформление' }));
+    expect(document.documentElement.dataset.inputModality).toBe('pointer');
+  });
   it('closes with Escape, but leaves Escape to an open settings dialog', async () => {
     const user = setup();
     await screen.findByRole('heading', { name: 'Пульс магазина' });

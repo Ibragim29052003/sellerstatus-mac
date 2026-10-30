@@ -48,6 +48,7 @@ func (s *DesktopService) ClosePanel() { hidePanel(s.panel) }
 func (s *DesktopService) OpenPanel() {
 	s.details.Hide()
 	showPanel(s.panel)
+	s.app.Event.Emit("sellerstatus:panel-layout", s.GetPanelLayout())
 }
 
 func allowed(value string, values ...string) bool {
@@ -89,7 +90,7 @@ func main() {
 		Name: "summary", Title: "SellerStatus — сводка", URL: "/?view=panel",
 		Width: 420, Height: 740, Frameless: true, AlwaysOnTop: true,
 		Hidden: true, DisableResize: true,
-		Mac: application.MacWindow{CornerType: application.MacWindowCornerTypeSquare},
+		Mac:              application.MacWindow{CornerType: application.MacWindowCornerTypeSquare},
 		BackgroundColour: application.NewRGB(246, 247, 251),
 	})
 	details := app.Window.NewWithOptions(application.WebviewWindowOptions{
@@ -104,7 +105,10 @@ func main() {
 	tray := app.SystemTray.New()
 	tray.SetTemplateIcon(trayIcon)
 	tray.SetTooltip("SellerStatus · демонстрационный магазин")
-	tray.OnClick(func() { togglePanel(panel) })
+	tray.OnClick(func() {
+		togglePanel(panel)
+		app.Event.Emit("sellerstatus:panel-layout", service.GetPanelLayout())
+	})
 	menu := app.NewMenu()
 	menu.Add("Открыть обзор · ДЕМО").OnClick(func(*application.Context) { _ = service.OpenDetails("overview", "today", "normal") })
 	menu.AddSeparator()

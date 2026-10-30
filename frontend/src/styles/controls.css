@@ -16,7 +16,7 @@
 .select-trigger:hover,
 .select-trigger[aria-expanded='true'] {
   background: var(--hover);
-  border-color: var(--purple);
+  border-color: color-mix(in srgb, var(--purple) 35%, var(--line));
 }
 .select-trigger > svg {
   color: var(--muted);
@@ -59,8 +59,9 @@
   color: var(--purple);
   font-weight: 600;
 }
-.select-option.active:not([aria-selected='true']) {
-  box-shadow: inset 2px 0 var(--purple);
+:root[data-input-modality='keyboard'] .select-option.active {
+  outline: 1px solid color-mix(in srgb, var(--purple) 55%, var(--line));
+  outline-offset: -1px;
 }
 .settings-field .select-trigger {
   width: 100%;

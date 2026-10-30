@@ -7,6 +7,8 @@
 static char generationKey;
 static char closingKey;
 static char observersKey;
+static char layoutKey;
+typedef struct { double cutoutWidth; double headerHeight; } SSPanelLayout;
 void ssHidePanel(void *handle);
 static void observeDismissal(NSWindow *window) {
     if (objc_getAssociatedObject(window, &observersKey) != nil) return;
@@ -38,49 +40,65 @@ static WKWebView *findWebView(NSView *view) {
     }
     return nil;
 }
-static NSRect panelFrame(CGFloat *topInset) {
+static NSRect panelFrame(SSPanelLayout *layout) {
     NSScreen *screen = NSScreen.mainScreen;
     NSPoint pointer = NSEvent.mouseLocation;
     for (NSScreen *candidate in NSScreen.screens) {
         if (NSMouseInRect(pointer, candidate.frame, NO)) { screen = candidate; break; }
     }
     NSRect available = screen.visibleFrame;
-    CGFloat width = MIN(420.0, available.size.width - 32.0);
-    // The background reaches the physical edge; interactive content stays below
-    // the camera housing/menu bar. A display without a notch uses its menu height.
-    *topInset = MAX(screen.safeAreaInsets.top, NSMaxY(screen.frame) - NSMaxY(available));
-    CGFloat height = MIN(740.0 + *topInset, NSMaxY(screen.frame) - NSMinY(available) - 16.0);
-    return NSMakeRect(NSMidX(screen.frame) - width / 2.0, NSMaxY(screen.frame) - height, width, height);
+    NSRect left = screen.auxiliaryTopLeftArea;
+    NSRect right = screen.auxiliaryTopRightArea;
+    BOOL hasCutout = screen.safeAreaInsets.top > 0;
+    BOOL hasCutoutBounds = hasCutout && !NSIsEmptyRect(left) && !NSIsEmptyRect(right) && NSMinX(right) > NSMaxX(left);
+    layout->cutoutWidth = hasCutout ? (hasCutoutBounds ? NSMinX(right) - NSMaxX(left) : 200.0) : 0;
+    layout->headerHeight = MAX(36.0, screen.safeAreaInsets.top);
+    CGFloat centre = hasCutoutBounds ? (NSMaxX(left) + NSMinX(right)) / 2.0 : NSMidX(screen.frame);
+    CGFloat width = MIN(hasCutout ? MAX(520.0, layout->cutoutWidth + 288.0) : 420.0, available.size.width - 32.0);
+    CGFloat height = MIN(740.0, NSMaxY(screen.frame) - NSMinY(available) - 16.0);
+    // Overscan one physical pixel. This also covers fractional backing-store
+    // rounding at the display edge; no CSS border or native strip is needed.
+    CGFloat overscan = 1.0 / MAX(1.0, screen.backingScaleFactor);
+    return NSMakeRect(round(centre - width / 2.0), NSMaxY(screen.frame) - height, width, height + overscan);
 }
-static void layoutPanel(NSWindow *window, CGFloat topInset) {
+SSPanelLayout ssGetPanelLayout(void *handle) {
+    NSWindow *window = (NSWindow *)handle;
+    NSDictionary *saved = objc_getAssociatedObject(window, &layoutKey);
+    if (saved != nil) return (SSPanelLayout){ [saved[@"cutoutWidth"] doubleValue], [saved[@"headerHeight"] doubleValue] };
+    SSPanelLayout layout;
+    panelFrame(&layout);
+    return layout;
+}
+static void layoutPanel(NSWindow *window) {
     NSView *root = window.contentView;
     window.level = NSStatusWindowLevel;
     window.opaque = NO;
     window.backgroundColor = NSColor.clearColor;
     root.wantsLayer = YES;
-    root.layer.backgroundColor = NSColor.blackColor.CGColor;
+    root.layer.backgroundColor = NSColor.clearColor.CGColor;
     root.layer.cornerRadius = 16.0;
     root.layer.maskedCorners = kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner;
     root.layer.masksToBounds = YES;
     WKWebView *webView = findWebView(root);
-    webView.frame = NSMakeRect(0, 0, NSWidth(root.bounds), MAX(1, NSHeight(root.bounds) - topInset));
+    webView.frame = root.bounds;
     webView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
 }
 void ssShowPanel(void *handle) {
     NSWindow *window = (NSWindow *)handle;
     if (window == nil) return;
     observeDismissal(window);
-    nextGeneration(window);
+    NSUInteger generation = nextGeneration(window);
     objc_setAssociatedObject(window, &closingKey, @NO, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    CGFloat topInset = 0;
-    NSRect target = panelFrame(&topInset);
+    SSPanelLayout layout;
+    NSRect target = panelFrame(&layout);
+    objc_setAssociatedObject(window, &layoutKey, @{ @"cutoutWidth": @(layout.cutoutWidth), @"headerHeight": @(layout.headerHeight) }, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     // Keep the web viewport constant for the whole animation: changing its size
     // can wrap text and momentarily create a document scrollbar.
     NSRect start = target;
     start.origin.y += 22.0;
     window.animationBehavior = NSWindowAnimationBehaviorNone;
     [window setFrame:start display:NO];
-    layoutPanel(window, topInset);
+    layoutPanel(window);
     window.alphaValue = duration() > 0 ? 0.0 : 1.0;
     [NSApp activateIgnoringOtherApps:YES];
     [window makeKeyAndOrderFront:nil];
@@ -89,7 +107,9 @@ void ssShowPanel(void *handle) {
         context.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut];
         [[window animator] setFrame:target display:YES];
         [[window animator] setAlphaValue:1.0];
-    } completionHandler:nil];
+    } completionHandler:^{
+        if (isCurrent(window, generation)) [window setFrame:target display:YES];
+    }];
 }
 void ssHidePanel(void *handle) {
     NSWindow *window = (NSWindow *)handle;

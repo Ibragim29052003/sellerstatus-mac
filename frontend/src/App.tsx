@@ -31,6 +31,7 @@ import Settings from './features/Settings';
 import { canShowPrevious, toLoadIssue } from './data/loading/errors';
 import { LoadNotice } from './components/LoadNotice';
 import { useRetryCountdown } from './app/useRetryCountdown';
+import { useInputModality } from './app/useInputModality';
 const pages = [
   { id: 'overview', label: 'Обзор', icon: LayoutDashboard },
   { id: 'stocks', label: 'Остатки и склады', icon: Boxes },
@@ -69,6 +70,7 @@ export default function App() {
     ) : undefined;
   const [desktopError, setDesktopError] = useState<string | null>(null);
   useAppearance();
+  useInputModality();
   useEffect(() => {
     if (!panel) return;
     const onKeyDown = (event: KeyboardEvent) => {

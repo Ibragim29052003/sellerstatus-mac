@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { Monitor, X } from 'lucide-react';
 import { actions, useAppDispatch, useAppSelector } from '../app/store';
 import { scenarioOptions, themeOptions } from '../data/options';
@@ -8,14 +8,19 @@ export default function Settings() {
   const dispatch = useAppDispatch();
   const { settingsOpen, theme, scenario, themeError } = useAppSelector((state) => state.ui);
   const dialog = useRef<HTMLDialogElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const titleId = useId();
   useEffect(() => {
-    if (settingsOpen) dialog.current?.showModal();
-    else dialog.current?.close();
+    if (settingsOpen) {
+      dialog.current?.showModal();
+      heading.current?.focus({ preventScroll: true });
+    } else dialog.current?.close();
   }, [settingsOpen]);
   return (
     <dialog
       ref={dialog}
       className="settings-dialog"
+      aria-labelledby={titleId}
       onCancel={() => dispatch(actions.settingsToggled())}
       onClick={(e) => {
         if (e.target !== e.currentTarget) return;
@@ -30,7 +35,9 @@ export default function Settings() {
       }}
     >
       <div className="modal-heading">
-        <h2>Настройки прототипа</h2>
+        <h2 ref={heading} id={titleId} tabIndex={-1}>
+          Настройки прототипа
+        </h2>
         <button
           className="icon-button"
           aria-label="Закрыть настройки"
