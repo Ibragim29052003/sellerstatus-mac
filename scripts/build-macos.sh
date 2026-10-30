@@ -27,12 +27,19 @@ APP_ROOT="$STAGE_DIR/SellerStatus Mac.app"
 mkdir -p "$APP_ROOT/Contents/MacOS" "$APP_ROOT/Contents/Resources"
 "$GO_COMMAND" build -tags production -trimpath -ldflags='-s -w' -o "$APP_ROOT/Contents/MacOS/sellerstatus-mac" .
 cp assets/Info.plist "$APP_ROOT/Contents/Info.plist"
-printf 'APPL????' > "$APP_ROOT/Contents/PkgInfo"
+if [[ -d "$PROJECT_ROOT/.local/planner" ]]; then
+  /usr/bin/ditto --norsrc --noextattr "$PROJECT_ROOT/.local/planner" "$APP_ROOT/Contents/Resources/planner"
+  /usr/libexec/PlistBuddy -c 'Set :LSMinimumSystemVersion 14.0' "$APP_ROOT/Contents/Info.plist"
+  # Self-contained .NET contains native libraries and an apphost. Sign each
+  # native Mach-O before sealing the enclosing application bundle.
+  python3 "$PROJECT_ROOT/scripts/sign-planner.py" "$APP_ROOT/Contents/Resources/planner"
+fi
+printf 'APPL????'  > "$APP_ROOT/Contents/PkgInfo"
 /usr/bin/xattr -cr "$APP_ROOT"
 /usr/bin/codesign --force --deep --sign - "$APP_ROOT"
 /usr/bin/codesign --verify --deep --strict "$APP_ROOT"
 mkdir -p "$PROJECT_ROOT/build"
-/usr/bin/ditto --norsrc --noextattr "$APP_ROOT" "$PROJECT_ROOT/build/SellerStatus Mac.app"
+python3 "$PROJECT_ROOT/scripts/install-bundle.py" "$APP_ROOT" "$PROJECT_ROOT/build/SellerStatus Mac.app"
 /usr/bin/ditto -c -k --keepParent --norsrc --noextattr "$APP_ROOT" "$PROJECT_ROOT/build/SellerStatus-Mac-demo.zip"
 echo "Готово: $PROJECT_ROOT/build/SellerStatus Mac.app"
 echo "Архив: $PROJECT_ROOT/build/SellerStatus-Mac-demo.zip"

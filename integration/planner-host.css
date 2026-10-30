@@ -1,0 +1,43 @@
+/* Applied only by the Mac host. The original browser UI is unchanged. */
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --page: #f6f7fb;
+  --surface: #fff;
+  --surface-muted: #f8f7fc;
+  --surface-hover: #f0ecfc;
+  --text: #242538;
+  --muted: #676a7d;
+  --subtle: #676a7d;
+  --border: #eeedf4;
+  --border-strong: #dad7e8;
+  --primary: #7461d8;
+  --primary-hover: #6552ca;
+  --primary-soft: #f0ecfc;
+  --on-primary: #fff;
+}
+:root[data-theme='dark'] {
+  --page: #17181f;
+  --surface: #21222c;
+  --surface-muted: #252530;
+  --surface-hover: #2a2936;
+  --text: #eeeef6;
+  --muted: #b1b0c2;
+  --subtle: #b1b0c2;
+  --border: #31313e;
+  --border-strong: #484459;
+  --primary: #b4a4ff;
+  --primary-hover: #c7baff;
+  --primary-soft: #343044;
+  --on-primary: #242033;
+}
+body { font-size: 14px; }
+h1 { font-family: inherit; font-size: clamp(26px, 2.5vw, 30px); letter-spacing: -.035em; }
+.topbar { min-height: 56px; }
+.brand { font-size: 18px; gap: 10px; }
+.brand-logo, [data-theme-toggle] { display: none !important; }
+.brand::before { content: 'S'; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; color: var(--primary); background: var(--primary-soft); font-size: 20px; }
+button, .select-trigger { min-height: 38px; }
+:focus { outline: none !important; }
+input:not([type='hidden']):focus, select:focus, .select-trigger:focus-visible { box-shadow: none; }
+html:not([data-desktop-keyboard]) input:not([type='hidden']):focus { border-color: var(--border-strong); }
+html[data-desktop-keyboard] :focus-visible { outline: 1px solid var(--primary) !important; outline-offset: -1px !important; }

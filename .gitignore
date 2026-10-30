@@ -6,3 +6,9 @@ frontend/dist/
 build/
 *.log
 .env*
+
+# Optional private academic planner: never publish sources or binaries.
+.local/
+
+__pycache__/
+*.pyc

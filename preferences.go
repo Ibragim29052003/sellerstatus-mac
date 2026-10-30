@@ -75,6 +75,7 @@ func (s *DesktopService) SetTheme(theme string) error {
 	}
 	if s.app != nil {
 		s.app.Event.Emit("sellerstatus:theme", theme)
+		setPlannerTheme(theme)
 	}
 	return nil
 }

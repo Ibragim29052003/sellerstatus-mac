@@ -22,6 +22,7 @@ var trayIcon []byte
 type DesktopService struct {
 	app         *application.App
 	preferences *themePreferences
+	planner     *plannerProcess
 	details     *application.WebviewWindow
 	tray        *application.SystemTray
 	panel       *application.WebviewWindow
@@ -38,6 +39,7 @@ func (s *DesktopService) OpenDetails(page, period, scenario string) error {
 	query := url.Values{"page": {page}, "period": {period}, "scenario": {scenario}}
 	s.details.SetURL("/?" + query.Encode())
 	hidePanel(s.panel)
+	hidePlanner()
 	s.details.Show()
 	s.details.Focus()
 	return nil
@@ -46,6 +48,7 @@ func (s *DesktopService) OpenDetails(page, period, scenario string) error {
 func (s *DesktopService) ClosePanel() { hidePanel(s.panel) }
 
 func (s *DesktopService) OpenPanel() {
+	hidePlanner()
 	s.details.Hide()
 	showPanel(s.panel)
 	s.app.Event.Emit("sellerstatus:panel-layout", s.GetPanelLayout())
@@ -69,9 +72,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	service := &DesktopService{preferences: loadThemePreferences(filepath.Join(config, "SellerStatusMac", "preferences.json"))}
+	service := &DesktopService{preferences: loadThemePreferences(filepath.Join(config, "SellerStatusMac", "preferences.json")), planner: newPlannerProcess(filepath.Join(config, "SellerStatusMac", "Planner"))}
+	plannerDesktop = service
 	app := application.New(application.Options{
-		Name: "SellerStatus Mac",
+		Name:       "SellerStatus Mac",
+		OnShutdown: service.planner.Stop,
 		SingleInstance: &application.SingleInstanceOptions{
 			UniqueID: "local.sellerstatus.mac.demo",
 			OnSecondInstanceLaunch: func(application.SecondInstanceData) {
@@ -106,11 +111,13 @@ func main() {
 	tray.SetTemplateIcon(trayIcon)
 	tray.SetTooltip("SellerStatus · демонстрационный магазин")
 	tray.OnClick(func() {
+		hidePlanner()
 		togglePanel(panel)
 		app.Event.Emit("sellerstatus:panel-layout", service.GetPanelLayout())
 	})
 	menu := app.NewMenu()
 	menu.Add("Открыть обзор · ДЕМО").OnClick(func(*application.Context) { _ = service.OpenDetails("overview", "today", "normal") })
+	menu.Add("Планировщик поставок · C#").OnClick(func(*application.Context) { go service.openPlannerFromMenu() })
 	menu.AddSeparator()
 	menu.Add("Выход").OnClick(func(*application.Context) { app.Quit() })
 	tray.SetMenu(menu)
