@@ -1,5 +1,14 @@
 export type Period = 'today' | 'yesterday' | 'week';
-export type Scenario = 'normal' | 'loss' | 'partial' | 'stale' | 'empty' | 'error';
+export type Scenario =
+  | 'normal'
+  | 'loss'
+  | 'partial'
+  | 'stale'
+  | 'empty'
+  | 'error'
+  | 'retry'
+  | 'refreshError'
+  | 'invalid';
 export type Page = 'overview' | 'stocks' | 'finance' | 'activity';
 export type StockFilter = 'all' | 'low' | 'inTransit';
 export type Theme = 'light' | 'dark' | 'system';
@@ -57,6 +66,7 @@ export interface Snapshot {
   trend: number[];
 }
 export interface SnapshotRequest {
+  cabinetId: string;
   period: Period;
   scenario: Scenario;
 }

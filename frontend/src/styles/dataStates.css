@@ -1,0 +1,56 @@
+.load-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  margin-bottom: 16px;
+  border: 1px solid var(--warn-line);
+  border-radius: 9px;
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-size: var(--font-sm);
+  line-height: 1.5;
+}
+.load-notice > svg {
+  margin-top: 2px;
+}
+.load-notice strong {
+  font-weight: 600;
+}
+.load-notice p,
+.load-notice small {
+  display: block;
+  margin-top: 5px;
+}
+.load-notice .text-button {
+  padding: 6px 0 0;
+}
+.error-card small {
+  color: var(--muted);
+  max-width: 400px;
+}
+.load-notice.compact {
+  padding: 8px;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.load-notice.compact > div {
+  flex: 1;
+  min-width: 0;
+}
+.load-notice.compact .notice-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.load-notice.compact .text-button {
+  padding: 0;
+  font-size: var(--font-xs);
+  flex-shrink: 0;
+}
+.load-notice.compact small {
+  font-size: var(--font-xs);
+  line-height: 1.35;
+  margin-top: 3px;
+}

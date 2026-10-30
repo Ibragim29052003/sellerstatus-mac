@@ -95,7 +95,10 @@ const products: Product[] = [
   },
 ];
 
-export function createDemoSnapshot({ period, scenario }: SnapshotRequest): Snapshot {
+export function createDemoSnapshot({
+  period,
+  scenario,
+}: Pick<SnapshotRequest, 'period' | 'scenario'>): Snapshot {
   const scale = period === 'week' ? 6 : period === 'yesterday' ? 0.86 : 1;
   const quantity = (n: number) => Math.round(n * scale);
   const empty = scenario === 'empty';

@@ -32,7 +32,7 @@ type DesktopService struct {
 func (s *DesktopService) OpenDetails(page, period, scenario string) error {
 	if !allowed(page, "overview", "stocks", "finance", "activity") ||
 		!allowed(period, "today", "yesterday", "week") ||
-		!allowed(scenario, "normal", "loss", "partial", "stale", "empty", "error") {
+		!allowed(scenario, "normal", "loss", "partial", "stale", "empty", "error", "retry", "refreshError", "invalid") {
 		return fmt.Errorf("unsupported view context")
 	}
 	query := url.Values{"page": {page}, "period": {period}, "scenario": {scenario}}

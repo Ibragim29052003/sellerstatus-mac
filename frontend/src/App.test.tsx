@@ -39,7 +39,7 @@ describe('Seller workspace', () => {
     expect(screen.getByText('Не определён')).toBeInTheDocument();
     await user.click(screen.getByRole('combobox', { name: 'Демосценарий' }));
     await user.click(screen.getByRole('option', { name: 'Ошибка сервера' }));
-    await screen.findByRole('alert');
+    await screen.findByRole('alert', {}, { timeout: 4000 });
     expect(screen.queryByText('Состав расчёта')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Вернуться к демосводке' }));
     await screen.findByText('Состав расчёта');

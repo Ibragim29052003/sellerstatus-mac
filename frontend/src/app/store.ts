@@ -4,6 +4,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { sellerApi } from './api';
 import { readBrowserTheme, saveTheme } from './preferences';
 import { isDesktop } from './desktop';
+import { createDemoSource } from '../data/demoSource';
+import type { SnapshotSource } from '../data/loading/source';
+import { scenarioOptions } from '../data/options';
 import type { Page, Period, Scenario, StockFilter, Theme } from '../data/types';
 interface UiState {
   page: Page;
@@ -28,9 +31,7 @@ const initialState: UiState = {
   period: ['today', 'yesterday', 'week'].includes(requestedPeriod ?? '')
     ? (requestedPeriod as Period)
     : 'today',
-  scenario: ['normal', 'loss', 'partial', 'stale', 'empty', 'error'].includes(
-    requestedScenario ?? '',
-  )
+  scenario: scenarioOptions.some((option) => option.value === requestedScenario)
     ? (requestedScenario as Scenario)
     : 'normal',
   query: '',
@@ -93,7 +94,7 @@ const uiSlice = createSlice({
   },
 });
 export const actions = uiSlice.actions;
-export const createAppStore = () => {
+export const createAppStore = (snapshotSource: SnapshotSource = createDemoSource()) => {
   const listener = createListenerMiddleware();
   let pendingSave = Promise.resolve();
   listener.startListening({
@@ -111,7 +112,9 @@ export const createAppStore = () => {
     reducer: { ui: uiSlice.reducer, [sellerApi.reducerPath]: sellerApi.reducer },
     preloadedState: { ui: { ...initialState, theme: isDesktop() ? 'system' : readBrowserTheme() } },
     middleware: (getDefault) =>
-      getDefault().prepend(listener.middleware).concat(sellerApi.middleware),
+      getDefault({ thunk: { extraArgument: { snapshotSource } } })
+        .prepend(listener.middleware)
+        .concat(sellerApi.middleware),
   });
 };
 export const store = createAppStore();

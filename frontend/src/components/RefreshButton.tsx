@@ -4,10 +4,12 @@ export function RefreshButton({
   busy,
   onClick,
   label,
+  disabled = false,
 }: {
   busy: boolean;
   onClick: () => void;
   label: string;
+  disabled?: boolean;
 }) {
   return (
     <button
@@ -15,7 +17,7 @@ export function RefreshButton({
       className="icon-button refresh-button"
       aria-label={busy ? 'Обновление…' : label}
       aria-busy={busy}
-      disabled={busy}
+      disabled={busy || disabled}
       onClick={onClick}
       title={busy ? 'Обновление…' : label}
     >

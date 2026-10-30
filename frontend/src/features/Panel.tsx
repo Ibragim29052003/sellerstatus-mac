@@ -22,16 +22,21 @@ import {
 } from '../data/selectors';
 import type { Page, Snapshot } from '../data/types';
 import { actions, useAppDispatch, useAppSelector } from '../app/store';
+import type { ReactNode } from 'react';
 export default function Panel({
   snapshot: s,
   onOpen,
   refreshing,
   onRefresh,
+  loadNotice,
+  retryBlocked = false,
 }: {
   snapshot: Snapshot;
   onOpen: (page: Page) => void;
   refreshing: boolean;
   onRefresh: () => void;
+  loadNotice?: ReactNode;
+  retryBlocked?: boolean;
 }) {
   const dispatch = useAppDispatch();
   const period = useAppSelector((state) => state.ui.period);
@@ -65,16 +70,17 @@ export default function Panel({
         />
       </div>
       <p className="panel-date">Вымышленные данные · 29 октября 2026</p>
-      {alerts.length > 0 && (
-        <button className="panel-alert" onClick={() => onOpen(alerts[0].target)}>
-          <CircleAlert size={19} />
-          <span>
-            <small>ВАЖНОЕ · {alerts.length}</small>
-            <strong>{alerts[0].title}</strong>
-          </span>
-          <ChevronRight size={17} />
-        </button>
-      )}
+      {loadNotice ??
+        (alerts.length > 0 && (
+          <button className="panel-alert" onClick={() => onOpen(alerts[0].target)}>
+            <CircleAlert size={19} />
+            <span>
+              <small>ВАЖНОЕ · {alerts.length}</small>
+              <strong>{alerts[0].title}</strong>
+            </span>
+            <ChevronRight size={17} />
+          </button>
+        ))}
       <div className="panel-metrics">
         {[
           { label: 'Заказы', value: s.operations.orders },
@@ -125,7 +131,12 @@ export default function Panel({
           />
           {sourceTime(s.sources.operations)} МСК
         </span>
-        <RefreshButton label="Перезагрузить демоснимок" busy={refreshing} onClick={onRefresh} />
+        <RefreshButton
+          label="Перезагрузить демоснимок"
+          busy={refreshing}
+          onClick={onRefresh}
+          disabled={retryBlocked}
+        />
       </footer>
       <button className="primary-button panel-open" onClick={() => onOpen('overview')}>
         Открыть подробности

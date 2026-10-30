@@ -18,6 +18,9 @@ export const scenarioOptions: SelectOption<Scenario>[] = [
   { value: 'stale', label: 'Устаревшие остатки' },
   { value: 'empty', label: 'Пустой кабинет' },
   { value: 'error', label: 'Ошибка сервера' },
+  { value: 'retry', label: 'Успех со второй попытки' },
+  { value: 'refreshError', label: 'Сбой повторного обновления' },
+  { value: 'invalid', label: 'Повреждённый ответ' },
 ];
 export const stockOptions: SelectOption<StockFilter>[] = [
   { value: 'all', label: 'Все состояния' },

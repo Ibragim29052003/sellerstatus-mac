@@ -28,6 +28,9 @@ import Finance from './features/Finance';
 import Activity from './features/Activity';
 import Panel from './features/Panel';
 import Settings from './features/Settings';
+import { canShowPrevious, toLoadIssue } from './data/loading/errors';
+import { LoadNotice } from './components/LoadNotice';
+import { useRetryCountdown } from './app/useRetryCountdown';
 const pages = [
   { id: 'overview', label: 'Обзор', icon: LayoutDashboard },
   { id: 'stocks', label: 'Остатки и склады', icon: Boxes },
@@ -39,11 +42,31 @@ export default function App() {
   const ui = useAppSelector((state) => state.ui);
   const panel = new URLSearchParams(window.location.search).get('view') === 'panel';
   const {
-    currentData: snapshot,
+    currentData: cachedSnapshot,
     isFetching,
     isError,
+    error,
     refetch,
-  } = useSnapshotQuery({ period: ui.period, scenario: ui.scenario });
+  } = useSnapshotQuery({ cabinetId: 'demo-store', period: ui.period, scenario: ui.scenario });
+  const issue = isError && !isFetching ? toLoadIssue(error) : undefined;
+  const snapshot = !issue || canShowPrevious(issue) ? cachedSnapshot : undefined;
+  const fatal = !!issue && !snapshot;
+  const retrySeconds = useRetryCountdown(issue?.retryAt);
+  const refresh = () => {
+    if (!isFetching && (issue?.retryAt ?? 0) <= Date.now()) void refetch();
+  };
+  const loadNotice =
+    snapshot && issue ? (
+      <LoadNotice
+        issue={issue}
+        operationsTime={snapshot.sources.operations}
+        inventoryTime={snapshot.sources.inventory}
+        busy={isFetching}
+        retrySeconds={retrySeconds}
+        onRetry={refresh}
+        compact={panel}
+      />
+    ) : undefined;
   const [desktopError, setDesktopError] = useState<string | null>(null);
   useAppearance();
   useEffect(() => {
@@ -66,19 +89,20 @@ export default function App() {
       }
     } else dispatch(actions.pageChanged(page));
   };
-  const content = isError ? (
+  const content = fatal ? (
     <div className="empty-card error-card" role="alert">
       <CircleAlert size={32} />
       <h2>Не удалось загрузить сводку</h2>
-      <p>Это сценарий ошибки на демоданных. Выберите другой сценарий, чтобы продолжить.</p>
+      <p>{issue.message}</p>
+      <small>Это проверка на демоданных. Данные реального кабинета не запрашиваются.</small>
       <button
         className="primary-button"
         onClick={() => dispatch(actions.scenarioChanged('normal'))}
       >
         Вернуться к демосводке
       </button>
-      <button className="text-button" onClick={() => void refetch()}>
-        Повторить загрузку
+      <button className="text-button" disabled={isFetching || retrySeconds > 0} onClick={refresh}>
+        {retrySeconds > 0 ? `Повтор через ${retrySeconds} с` : 'Повторить загрузку'}
         <RefreshCw size={15} />
       </button>
     </div>
@@ -93,7 +117,9 @@ export default function App() {
       snapshot={snapshot}
       onOpen={(page) => void open(page)}
       refreshing={isFetching}
-      onRefresh={() => void refetch()}
+      onRefresh={refresh}
+      loadNotice={loadNotice}
+      retryBlocked={retrySeconds > 0}
     />
   ) : ui.page === 'stocks' ? (
     <Stocks snapshot={snapshot} />
@@ -114,7 +140,7 @@ export default function App() {
           </a>
         )}
         {content}
-        {isError && (
+        {fatal && (
           <button
             className="text-button panel-recovery"
             onClick={() => dispatch(actions.settingsToggled())}
@@ -198,7 +224,8 @@ export default function App() {
             <RefreshButton
               label="Обновить демоданные"
               busy={isFetching}
-              onClick={() => void refetch()}
+              disabled={retrySeconds > 0}
+              onClick={refresh}
             />
             <button
               className="icon-button"
@@ -229,6 +256,7 @@ export default function App() {
               ))}
             </div>
           </div>
+          {loadNotice}
           {content}
         </main>
         <footer className="app-footer">
